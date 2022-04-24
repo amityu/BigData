@@ -29,8 +29,27 @@ def aggregare2(df):
     qty =  df.resample('W', on='Date').agg({'Inspection_Serial_Num':'unique'}).reset_index()
     qty['qty'] = qty.apply(lambda x:len(x['Inspection_Serial_Num']), axis =1)
     score = df.resample('W', on='Date').agg({'Violation Points':'mean'}).reset_index()
-    day_score = df.groupby(['weekday']).mean()
+    day_score = df.groupby(['weekday']).mean().reset_index()
     return day_score,qty,score
 day_score, qty,score = aggregare2(df)
 print(qty)
 print(score)
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+sns.lineplot(x='Date', y='qty',data=qty)
+plt.title('Quatity of Resturant inspections')
+plt.savefig("Quatity of Resturant inspections.png")
+plt.close()
+sns.lineplot(x='Date', y='Violation Points',data=score)
+plt.title('Violation Score of Resturant inspections')
+plt.savefig("Violation Score of Resturant inspections.png")
+plt.show()
+plt.close()
+sns.barplot(x='weekday', y='Violation Points',data=day_score)
+plt.title('Daily Violation Score of Resturant inspections')
+locs, labels = plt.xticks()
+plt.xticks(locs,['Mon','Tue', 'Wed','Thu', 'Fri', 'Sat','Sun'])
+plt.savefig("Daily Violation Score of Resturant inspections.png")
+
+print('shalom')
