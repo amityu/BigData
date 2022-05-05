@@ -24,7 +24,9 @@ RESOURCE_PATH = '../project_resources/'
 from bs4 import BeautifulSoup
 import requests
 import pandas as pd
+from tqdm import tqdm
 def webscrap():
+    u2 ='https://www.car.org/en/knowledge/pubs/CREM/Archive'
     u = "https://magazine.realtor/article-archive/all"
     s = requests.get(u).content.decode('utf-8')
     s
@@ -62,6 +64,44 @@ def webscrap():
 
     df.head()
 
+
+def webscrap2():
+    u = 'https://realtyquarter.com/category/real_estate_news/page/%d/'
+    ua = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
+    ua ='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36'
+
+    a_url = []
+    p_text = []
+
+    for p in tqdm(range(118)):
+        s = requests.get(u%p,headers={"User-Agent": ua}).content.decode('utf-8')
+        html = s
+        soup = BeautifulSoup(html, 'html.parser')
+        l = soup.findAll('h3', attrs={'class': "entry-title"})
+        # get all magazines url
+
+        for tag in l:
+          #print('magazine ' + a_url[-1])
+          a_url.append(tag.findChild("a")['href'])
+
+          try:
+            a_html = requests.get(a_url[-1],headers={"User-Agent": ua}).content.decode('utf-8')
+          except:
+
+                print('error in %d'%p)
+                continue
+
+
+          a_soup = BeautifulSoup(a_html, 'html.parser')
+          for paragraph in a_soup.findAll('p'):
+               p_text.append( paragraph.get_text())
+
+    df  = pd.DataFrame(list(zip(a_url, p_text)),
+                   columns =['a_url', 'p_text'])
+    df.to_csv(RESOURCE_PATH + 'quater_p.csv')
+
+    df.head()
+#webscrap2()
 #!pip install turicreate
 
 #from google.colab import drive
@@ -82,7 +122,8 @@ import os
 
 #nltk.download('stopwords')
 from nltk.corpus import stopwords
-df = pd.read_csv(RESOURCE_PATH + './realator_p.csv')
+df = pd.read_csv(RESOURCE_PATH + './quater_p.csv')
+df['p_text']=df['p_text'].apply(lambda x: x if len(str(x))>20 else 'NaN')
 df = df.replace('NaN', 'None')
 df = df.dropna()
 sf = tc.SFrame(data = df)
@@ -125,14 +166,16 @@ d = Counter(l)
 print('most common words')
 print (d.most_common(20))
 
-stop_words_set |= {k for k,v in d.items() if v > 2500}
-
+# relators
+# stop_words_set |= {k for k,v in d.items() if v > 2000}
+#quarter
+stop_words_set |= {k for k,v in d.items() if v > 150}
 def skip_word2(w):
     if len(w) <2:
         return True
     if w.isdigit():
         return True
-    if w in stop_words_set :#or stemmer.stem(w) in stop_words_set:
+    if word_stemming(w) in stop_words_set :#or stemmer.stem(w) in stop_words_set:
         return True
     return False
 
@@ -155,7 +198,7 @@ def skip_word2(w):
         return True
     return False
 #docs = tc.text_analytics.count_words(sf['stemmed'])
-docs = tc.text_analytics.count_ngrams(sf['stemmed'], n=2)
+docs = tc.text_analytics.count_ngrams(sf['stemmed'], n=1)
 
 #docs = tc.text_analytics.tf_idf(sf['stemmed'])
 
@@ -170,8 +213,8 @@ print('most common words docs ')
 #stop_words_set |= {k for k,v in d.items() if v > 1000}
 #docs = {w:v for w, v in d.items() if not skip_word2(w)}
 
-topic_model = tc.topic_model.create(docs)
-topic_model.get_topics().print_rows(50)
+topic_model = tc.topic_model.create(docs,num_topics=15)
+topic_model.get_topics().print_rows(100)
 
 topic_model = topic_model_by_year(2018)
 topic_model.get_topics().print_rows(50)
